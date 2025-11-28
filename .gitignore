@@ -5,7 +5,7 @@
 .DS_Store
 .AppleDouble
 .LSOverride
-.gitignore
+
 
 # Thumbnails
 ._*
@@ -92,3 +92,5 @@ macOS/Carthage/Build/
 
 # macOS specific files
 macOS/*.DS_Store
+
+!.gitignore
