@@ -22,7 +22,7 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
     private var characteristic: CBMutableCharacteristic?
 
     var serviceUUID: CBUUID {
-        return CBUUID(string: "12345678-\(broadcastKey)-1234-1234-1234567890AB")
+        return CBUUID(string: "1234")
     }
 
     // The key used for the local advertising name (the "password")

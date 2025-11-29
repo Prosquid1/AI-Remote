@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.20" // this version matches your Kotlin version
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
 }
 
 android {
@@ -75,4 +75,5 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3") // <-- ADD THIS LINE
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("com.github.squti:Android-Wave-Recorder:2.1.0")
 }
