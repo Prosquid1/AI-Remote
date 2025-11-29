@@ -185,6 +185,9 @@ class BLEManager(private val context: Context) {
         stopScanning()
     }
 
+    private val writeQueue: ArrayDeque<ByteArray> = ArrayDeque()
+    private var isWriting = false
+
     @SuppressLint("MissingPermission")
     fun sendMessage(message: String, isPing: Boolean = false): Boolean {
         val gatt = connectedGatt
@@ -197,25 +200,52 @@ class BLEManager(private val context: Context) {
         }
 
         if (!isPing) {
-            // Reset keep alive implementation
             stopKeepAlive()
             startKeepAlive()
         }
 
-        return try {
-            val messageBytes = message.toByteArray()
-            val success = writeInPackets(gatt, characteristic, messageBytes)
-            Log.d("BLE", "Write initiated for message: '$message'. Success status: $success")
+        val data = message.toByteArray()
+        enqueuePackets(data)
 
-            // Wait for onCharacteristicWrite for final status, but return initiation status now
-            success
-        } catch (e: Exception) {
-            Log.e("BLE", "Error writing characteristic: ${e.message}")
-            listener?.onMessageSent(false, message)
-            false
+        // If not currently in the middle of a write, start writing
+        if (!isWriting) {
+            writeNextPacket(gatt, characteristic)
+        }
+
+        return true
+    }
+
+    private fun enqueuePackets(data: ByteArray, packetSize: Int = 20) {
+        var offset = 0
+        while (offset < data.size) {
+            val end = minOf(offset + packetSize, data.size)
+            writeQueue.addLast(data.copyOfRange(offset, end))
+            offset = end
         }
     }
 
+    @SuppressLint("MissingPermission")
+    private fun writeNextPacket(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic
+    ) {
+        val packet = writeQueue.removeFirstOrNull()
+        if (packet == null) {
+            isWriting = false
+            return
+        }
+
+        isWriting = true
+        characteristic.value = packet
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+
+        val success = gatt.writeCharacteristic(characteristic)
+        if (!success) {
+            Log.e("BLE", "Failed to write packet")
+            isWriting = false
+            writeQueue.clear()
+        }
+    }
     // ----------------------------------------------------
     // KEEP-ALIVE (PING) IMPLEMENTATION
     // ----------------------------------------------------
@@ -250,12 +280,12 @@ class BLEManager(private val context: Context) {
     }
 
     private fun stopKeepAlive() {
-        // handler.removeCallbacks(keepAliveRunnable)
+        handler.removeCallbacks(keepAliveRunnable)
         Log.d("BLE", "Keep-alive stopped.")
     }
 
     private fun startKeepAlive() {
-        // handler.postDelayed(keepAliveRunnable, KEEPALIVE_INTERVAL_MS)
+        handler.postDelayed(keepAliveRunnable, KEEPALIVE_INTERVAL_MS)
         Log.d("BLE", "Keep-alive started with ${KEEPALIVE_INTERVAL_MS}ms interval.")
     }
 
@@ -422,16 +452,24 @@ class BLEManager(private val context: Context) {
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
-            writeInProgress = false
             val success = status == BluetoothGatt.GATT_SUCCESS
             val message = characteristic.value?.toString(Charsets.UTF_8) ?: "Unknown Message"
-            if (message.equals(PING_MESSAGE)) return
-            if (success) {
-                Log.d("BLE", "Characteristic write successful.")
+
+            if (message == pingMessage) {
+                // Ignore pings if you want
             } else {
-                Log.e("BLE", "Characteristic write failed with status: $status")
+                listener?.onMessageSent(success, message)
             }
-            listener?.onMessageSent(success, message)
+
+            if (!success) {
+                Log.e("BLE", "Characteristic write failed with status: $status")
+                isWriting = false
+                writeQueue.clear()
+                return
+            }
+
+            // Current packet done → send next one if available
+            writeNextPacket(gatt, characteristic)
         }
 
 

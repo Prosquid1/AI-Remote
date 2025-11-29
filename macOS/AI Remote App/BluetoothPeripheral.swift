@@ -81,69 +81,58 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
         }
     }
 
+//    func peripheralManager(_ peripheral: CBPeripheralManager,
+//                           didReceiveWrite requests: [CBATTRequest]) {
+//        for request in requests {
+//            if let value = request.value {
+//                receivedMessage = String(data: value, encoding: .utf8) ?? "Received unreadable data"
+//                print("Received message: \(receivedMessage)")
+//
+//                if (receivedMessage != "PING!") {
+//
+//                    runAppleScript(receivedMessage.replacingOccurrences(of: "```", with: ""), completion: {a, b in})
+//
+//
+//                }
+//
+//                // Respond to the request to acknowledge the write
+//                peripheral.respond(to: request, withResult: .success)
+//            }
+//        }
+//    }
+
+    var messageBuffer = ""
+
     func peripheralManager(_ peripheral: CBPeripheralManager,
                            didReceiveWrite requests: [CBATTRequest]) {
-
-        var dataBuffer = Data() // To accumulate the incoming packets
-        let endOfMessageDelimiter = "*EOM*"
-
-        // Process all requests received in this batch
         for request in requests {
+            if let value = request.value,
+               let chunk = String(data: value, encoding: .utf8) {
 
-            // 1. Respond to the request immediately to acknowledge the write
-            // This is crucial for the Android device to send the next packet
-            peripheral.respond(to: request, withResult: .success)
+                print("Received chunk: \(chunk)")
+                messageBuffer += chunk
 
-            guard let value = request.value else {
-                // No data in this request, move to the next one
-                continue
-            }
+                // Check if message is complete
+                if messageBuffer.contains("*EOM*") {
 
-            // 2. Append the incoming packet to the buffer
-            dataBuffer.append(value)
+                    // Remove the terminator
+                    let fullMessage = messageBuffer.replacingOccurrences(of: "*EOM*", with: "")
+                    print("Full received message: \(fullMessage)")
 
-            // Convert the accumulated buffer to a string for checking
-            // NOTE: Decoding the *entire* buffer for every packet is inefficient,
-            // but it's the simplest way to check for a string delimiter.
-            // For optimal performance, check for raw bytes of the delimiter.
-            if let currentMessage = String(data: dataBuffer, encoding: .utf8) {
-                
-                print(currentMessage)
-
-                // 3. Check for the End-of-Message (EOM) delimiter
-                if currentMessage.hasSuffix(endOfMessageDelimiter) {
-
-
-
-                    // The full message has arrived!
-
-                    // Remove the delimiter from the end of the message
-                    let fullMessage = currentMessage.replacingOccurrences(of: endOfMessageDelimiter, with: "")
-
-                    print("✅ Received full message: \(fullMessage)")
-
-                    // --- Your Logic Here ---
-                    if (fullMessage != "PING!") {
-                        // You can now use the 'fullMessage' variable
-                        runAppleScript(fullMessage, completion: { a, b in })
+                    if fullMessage != "PING!" {
+                        let cleaned = fullMessage.replacingOccurrences(of: "```", with: "")
+                        runAppleScript(cleaned) { a, b in }
                     }
 
-                    // 4. Reset the buffer for the next message
-                    dataBuffer = Data()
-
-                } else {
-                    // Not the end of the message, wait for the next packet
-                    print("...Received packet. Current buffer size: \(dataBuffer.count) bytes")
+                    // Clear buffer after processing
+                    messageBuffer = ""
                 }
-            } else {
-                print("Error decoding data while checking for delimiter.")
-                // Reset buffer if decoding fails (optional, but safer)
-                // dataBuffer = Data()
+
+                peripheral.respond(to: request, withResult: .success)
             }
         }
-
-
     }
+
 
     // MARK: - Control Methods
 

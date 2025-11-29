@@ -374,6 +374,10 @@ fun BLEChatScreen(
 
             Button(
                 onClick = {
+                    if (false) {
+                        onSendMessage("messageTextmessageTextmessageTextmessageTextmessageTextmessageTextmessageTextmessageTextmessageTextmessageTextmessageText")
+                        return@Button
+                    }
                     myScope.launch {
                         val scriptResult = ServiceLocator.router.generateScript(messageText)
                         onSendMessage(scriptResult.script)
