@@ -1,4 +1,4 @@
-package com.example.airemote.ai
+package com.ai.remote.ai
 
 import com.cactus.CactusLM
 import com.cactus.ChatMessage

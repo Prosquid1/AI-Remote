@@ -1,4 +1,4 @@
-package com.example.airemote.ai
+package com.ai.remote.ai
 
 data class ScriptGenerationResult(
     val script: String,

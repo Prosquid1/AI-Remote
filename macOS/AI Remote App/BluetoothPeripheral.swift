@@ -83,13 +83,58 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
 
     func peripheralManager(_ peripheral: CBPeripheralManager,
                            didReceiveWrite requests: [CBATTRequest]) {
-        for request in requests {
-            if let value = request.value {
-                receivedMessage = String(data: value, encoding: .utf8) ?? "Received unreadable data"
-                print("Received message: \(receivedMessage)")
 
-                // Respond to the request to acknowledge the write
-                peripheral.respond(to: request, withResult: .success)
+        var dataBuffer = Data() // To accumulate the incoming packets
+        let endOfMessageDelimiter = "*EOM*"
+
+        // Process all requests received in this batch
+        for request in requests {
+
+            // 1. Respond to the request immediately to acknowledge the write
+            // This is crucial for the Android device to send the next packet
+            peripheral.respond(to: request, withResult: .success)
+
+            guard let value = request.value else {
+                // No data in this request, move to the next one
+                continue
+            }
+
+            // 2. Append the incoming packet to the buffer
+            dataBuffer.append(value)
+
+            // Convert the accumulated buffer to a string for checking
+            // NOTE: Decoding the *entire* buffer for every packet is inefficient,
+            // but it's the simplest way to check for a string delimiter.
+            // For optimal performance, check for raw bytes of the delimiter.
+            if let currentMessage = String(data: dataBuffer, encoding: .utf8) {
+
+                // 3. Check for the End-of-Message (EOM) delimiter
+                if currentMessage.hasSuffix(endOfMessageDelimiter) {
+
+                    // The full message has arrived!
+
+                    // Remove the delimiter from the end of the message
+                    let fullMessage = currentMessage.replacingOccurrences(of: endOfMessageDelimiter, with: "")
+
+                    print("✅ Received full message: \(fullMessage)")
+
+                    // --- Your Logic Here ---
+                    if (fullMessage != "PING!") {
+                        // You can now use the 'fullMessage' variable
+                        runAppleScript(fullMessage, completion: { a, b in })
+                    }
+
+                    // 4. Reset the buffer for the next message
+                    dataBuffer = Data()
+
+                } else {
+                    // Not the end of the message, wait for the next packet
+                    print("...Received packet. Current buffer size: \(dataBuffer.count) bytes")
+                }
+            } else {
+                print("Error decoding data while checking for delimiter.")
+                // Reset buffer if decoding fails (optional, but safer)
+                // dataBuffer = Data()
             }
         }
     }

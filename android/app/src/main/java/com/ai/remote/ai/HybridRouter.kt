@@ -1,4 +1,6 @@
-package com.example.airemote.ai
+package com.ai.remote.ai
+
+import android.util.Log
 
 class HybridRouter(
     private val classifier: LocalClassifierLM,
@@ -34,7 +36,9 @@ class HybridRouter(
             RoutingDecision.CLOUD -> {
                 println("[HybridRouter] Using CLOUD Gemini")
                 try {
-                    val script = cloudGenerator.generate(command)
+                    val script = cloudGenerator.generate(command).replace("```", "").replace("applescript", "") + "*EOM*"
+                    Log.e("cloudGenerator", script)
+
                     ScriptGenerationResult(
                         script = script,
                         mode = "cloud"

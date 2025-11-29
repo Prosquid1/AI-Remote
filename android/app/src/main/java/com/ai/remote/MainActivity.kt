@@ -4,24 +4,49 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import com.cactus.CactusContextInitializer
-import com.cactus.CactusInitParams
-import com.cactus.CactusLM
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.ai.remote.ai.ServiceLocator
+import com.cactus.CactusContextInitializer
+import com.cactus.CactusInitParams
+import com.cactus.CactusLM
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,7 +79,6 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
         }
 
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CactusContextInitializer.initialize(this)
@@ -71,7 +95,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                 when (state) {
                     StartupStatus.Idle -> StartupScreen("Starting...")
                     is StartupStatus.Downloading -> StartupScreen("Downloading ${(state as StartupStatus.Downloading).model}...")
-                    StartupStatus.Ready ->  {
+                    StartupStatus.Ready -> {
                         BLEChatScreen(
                             connectionState = connectionState,
                             lastActionMessage = lastActionMessage,
@@ -92,6 +116,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                                 handleSendMessage(message)
                             })
                     }
+
                     is StartupStatus.Error -> ErrorScreen((state as StartupStatus.Error).message)
                 }
 
@@ -238,7 +263,7 @@ fun BLEChatScreen(
     onConnectClicked: () -> Unit,
     onDisconnectClicked: () -> Unit
 ) {
-    var messageText by rememberSaveable { mutableStateOf("Hello from Android") }
+    var messageText by rememberSaveable { mutableStateOf("Open livescore on Google Chrome") }
     var deviceNameText by rememberSaveable { mutableStateOf(targetDeviceName) }
 
     val color = when (connectionState) {
@@ -247,6 +272,7 @@ fun BLEChatScreen(
         else -> Color(0xFFF44336)
     }
 
+    val myScope = CoroutineScope(Dispatchers.Main)
     val isConnected = connectionState == ConnectionState.CONNECTED
     val isConnectingOrScanning =
         connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
@@ -334,9 +360,17 @@ fun BLEChatScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { onSendMessage(messageText) },
+                onClick = {
+                    myScope.launch {
+                        val scriptResult = ServiceLocator.router.generateScript(messageText)
+                        onSendMessage(scriptResult.script)
+                    }
+
+                },
                 enabled = isConnected && messageText.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("SEND MESSAGE", fontWeight = FontWeight.Bold)
@@ -344,6 +378,8 @@ fun BLEChatScreen(
         }
     }
 }
+
+
 
 @Composable
 fun renderConnection(

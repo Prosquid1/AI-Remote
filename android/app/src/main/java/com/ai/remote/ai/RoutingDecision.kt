@@ -1,5 +1,4 @@
-package com.example.airemote.ai
-
+package com.ai.remote.ai
 enum class RoutingDecision {
     LOCAL,
     CLOUD

@@ -1,4 +1,4 @@
-package com.example.airemote.ai
+package com.ai.remote.ai
 
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -24,9 +24,21 @@ class GeminiCloudClient(private val apiKey: String) {
 
     suspend fun generate(command: String): String {
         val prompt = """
-                Given a request, convert it into an executable AppleScript.
-                You must output ONLY valid AppleScript for macOS, no comments.
-
+            
+Your responses will be executed automatically with no human review. You must ensure the following at all times:
+- All AppleScript must be 100% valid
+- All JSON must be 100% valid and correctly escaped
+- No destructive, ambiguous, or placeholder content
+- All output is safe and fully deterministic
+You must output ONLY valid AppleScript for macOS, no comments.
+Do not include anything else. No markdown, no explanation, no extra text, no backticks, the AppleScript must run.
+✅ Do:
+- Use `return` (or `linefeed`) for newlines in strings. NEVER use `\n`.
+- Concatenate multiline strings using `& return & "..."`.
+- Always escape all double quotes inside strings as `\\\"` for JSON.
+- Ensure all string values in AppleScript are wrapped in double quotes.
+- Explicitly set properties in object constructors — no placeholders.
+- Bring the target app to the foreground using `activate`.
                 Request: "$command"
             """.trimIndent()
         val url =

@@ -1,4 +1,4 @@
-package com.example.airemote.ai
+package com.ai.remote.ai
 
 import com.cactus.*
 import kotlinx.coroutines.Dispatchers
