@@ -123,7 +123,7 @@ fun RecorderUiScreen(
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp) // Large size for the main button
+                .size(60.dp) // Large size for the main button
                 .clickable(onClick = onButtonClick)
                 .background(color = buttonColor, shape = CircleShape),
             contentAlignment = Alignment.Center
@@ -132,10 +132,10 @@ fun RecorderUiScreen(
                 painter = icon,
                 contentDescription = contentDescription,
                 tint = Color.White,
-                modifier = Modifier.size(60.dp) // Large icon size
+                modifier = Modifier.size(20.dp) // Large icon size
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }

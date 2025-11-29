@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.ai.remote.ai.ServiceLocator
 import com.ai.remote.audio.AudioRecorder
@@ -270,9 +273,9 @@ fun StartupScreen(message: String) {
         ) {
             Spacer(Modifier.height(48.dp))
             Text("Preparing AI Models...", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Text(message)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
@@ -329,6 +332,7 @@ fun BLEChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -347,8 +351,8 @@ fun BLEChatScreen(
                         fontWeight = FontWeight.Bold,
                         color = color
                     )
-                    //Spacer(modifier = Modifier.height(4.dp))
-                    // Text(lastActionMessage)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(lastActionMessage, fontSize = 12.sp)
                 }
             }
 
@@ -384,15 +388,17 @@ fun BLEChatScreen(
                 onDisconnectClicked
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // MESSAGE SEND
             Text(
                 text = "Command your Mac",
                 style = MaterialTheme.typography.headlineSmall,
+                fontSize = 16.sp,
+                //fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.Start)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = messageText,
@@ -409,7 +415,7 @@ fun BLEChatScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
                 onClick = {
@@ -432,7 +438,7 @@ fun BLEChatScreen(
                 Text("SEND MESSAGE", fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             RecorderUiScreen(
                 audioRecorder = audioRecorder,
