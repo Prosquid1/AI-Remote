@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import com.cactus.CactusContextInitializer
+import com.cactus.CactusInitParams
+import com.cactus.CactusLM
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,11 +18,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity(), BLEManagerListener {
+
+    private val _startupState = MutableStateFlow<StartupStatus>(StartupStatus.Idle)
+    val startupState = _startupState.asStateFlow()
 
     private lateinit var bleManager: BLEManager
 
@@ -41,8 +53,12 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
             }
         }
 
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CactusContextInitializer.initialize(this)
+        preloadModels()
 
         // BLE manager
         bleManager = BLEManager(applicationContext)
@@ -50,26 +66,64 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
 
         setContent {
             MyApplicationTheme {
-                BLEChatScreen(
-                    connectionState = connectionState,
-                    lastActionMessage = lastActionMessage,
-                    targetDeviceName = targetDeviceName,
+                val state by startupState.collectAsState()
 
-                    onTargetNameChanged = { newName ->
-                        targetDeviceName = newName
-                    },
+                when (state) {
+                    StartupStatus.Idle -> StartupScreen("Starting...")
+                    is StartupStatus.Downloading -> StartupScreen("Downloading ${(state as StartupStatus.Downloading).model}...")
+                    StartupStatus.Ready ->  {
+                        BLEChatScreen(
+                            connectionState = connectionState,
+                            lastActionMessage = lastActionMessage,
+                            targetDeviceName = targetDeviceName,
 
-                    onConnectClicked = {
-                        checkPermissionsAndScan()
-                    },
-                    onDisconnectClicked = {
-                        bleManager.disconnect()
-                        lastActionMessage = "Manual disconnect requested."
-                    },
-                    onSendMessage = { message ->
-                        handleSendMessage(message)
+                            onTargetNameChanged = { newName ->
+                                targetDeviceName = newName
+                            },
+
+                            onConnectClicked = {
+                                checkPermissionsAndScan()
+                            },
+                            onDisconnectClicked = {
+                                bleManager.disconnect()
+                                lastActionMessage = "Manual disconnect requested."
+                            },
+                            onSendMessage = { message ->
+                                handleSendMessage(message)
+                            })
                     }
-                )
+                    is StartupStatus.Error -> ErrorScreen((state as StartupStatus.Error).message)
+                }
+
+            }
+        }
+    }
+
+    private fun preloadModels() {
+        val classifierModel = "smollm2-360m"
+        val generatorModel = "lfm2-1.2b"
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Download classifier
+                _startupState.value = StartupStatus.Downloading(classifierModel)
+
+                val lm1 = CactusLM()
+                lm1.downloadModel(classifierModel)
+                lm1.initializeModel(CactusInitParams(classifierModel, contextSize = 512))
+
+                // Download generator
+                _startupState.value = StartupStatus.Downloading(generatorModel)
+
+                val lm2 = CactusLM()
+                lm2.downloadModel(generatorModel)
+                lm2.initializeModel(CactusInitParams(generatorModel, contextSize = 2048))
+
+                _startupState.value = StartupStatus.Ready
+
+            } catch (e: Exception) {
+                Log.e("AIApp", "Startup error", e)
+                _startupState.value = StartupStatus.Error(e.message ?: "Unknown error")
             }
         }
     }
@@ -141,6 +195,37 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     }
 }
 
+@Composable
+fun StartupScreen(message: String) {
+    MaterialTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text("Preparing AI Models...", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(16.dp))
+            Text(message)
+            Spacer(Modifier.height(16.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+fun ErrorScreen(msg: String) {
+    MaterialTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text("Error loading models:", color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
+            Text(msg)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -302,4 +387,12 @@ fun MyApplicationTheme(content: @Composable () -> Unit) {
         ),
         content = content
     )
+}
+
+
+sealed class StartupStatus {
+    object Idle : StartupStatus()
+    data class Downloading(val model: String) : StartupStatus()
+    object Ready : StartupStatus()
+    data class Error(val message: String) : StartupStatus()
 }
