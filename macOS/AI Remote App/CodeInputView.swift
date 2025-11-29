@@ -40,7 +40,7 @@ struct CodeInputView: View {
             // Secure Input Field
             VStack(alignment: .leading, spacing: 8) {
                 // Limit input to 4 characters and only numbers
-                SecureField("Enter 4-Digit Code", text: $codeInput)
+                TextField("Enter 4-Digit Code", text: $codeInput)
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 150)

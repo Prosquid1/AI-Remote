@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -73,7 +75,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     private lateinit var bleManager: BLEManager
 
     // Now mutable so UI can update it
-    private var targetDeviceName by mutableStateOf("1234")
+    private var targetDeviceName by mutableStateOf("")
 
     // UI state
     private var connectionState by mutableStateOf(ConnectionState.DISCONNECTED)
@@ -326,7 +328,7 @@ fun BLEChatScreen(
         connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("AI + BLE (Android-to-Mac) Remote") }) }
+        topBar = { TopAppBar(title = { Text("AI + BLE (Android-to-Mac) Remote", fontWeight = FontWeight.SemiBold) }) }
     ) { paddingValues ->
 
         Column(
@@ -360,7 +362,7 @@ fun BLEChatScreen(
 
             // DEVICE NAME FIELD
             Text(
-                text = "Enter your Mac Key",
+                text = "Enter your AI-Remote Mac Key",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.Start)
             )
@@ -372,6 +374,9 @@ fun BLEChatScreen(
                     deviceNameText = it
                     onTargetNameChanged(it)   // 🔥 Auto-connect
                 },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone
+                ),
                 label = { Text("Enter 4-digit key") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -381,6 +386,7 @@ fun BLEChatScreen(
 
             // CONNECTION BUTTONS
             renderConnection(
+                deviceNameText.length ==4,
                 connectionState,
                 isConnected,
                 isConnectingOrScanning,
@@ -403,7 +409,7 @@ fun BLEChatScreen(
             OutlinedTextField(
                 value = messageText,
                 onValueChange = { messageText = it },
-                label = { Text("Message to Send") },
+                label = { Text("Enter your Command here") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = isConnected
             )
@@ -457,6 +463,7 @@ fun BLEChatScreen(
 
 @Composable
 fun renderConnection(
+    isCodeValid: Boolean,
     connectionState: ConnectionState,
     isConnected: Boolean,
     isConnectingOrScanning: Boolean,
@@ -469,7 +476,7 @@ fun renderConnection(
     ) {
         Button(
             onClick = onConnectClicked,
-            enabled = connectionState == ConnectionState.DISCONNECTED || connectionState == ConnectionState.ERROR
+            enabled = isCodeValid && (connectionState == ConnectionState.DISCONNECTED || connectionState == ConnectionState.ERROR)
         ) {
             Text(if (connectionState == ConnectionState.ERROR) "RETRY CONNECT" else "CONNECT")
         }

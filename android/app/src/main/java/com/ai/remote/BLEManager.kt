@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import java.util.UUID
 
 // --- New Definitions for State Communication ---
@@ -211,6 +212,8 @@ class BLEManager(private val context: Context) {
         if (!isWriting) {
             writeNextPacket(gatt, characteristic)
         }
+
+        Toast.makeText(context, "Command sent!", Toast.LENGTH_SHORT).show()
 
         return true
     }
