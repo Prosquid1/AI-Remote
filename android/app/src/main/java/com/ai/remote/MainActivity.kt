@@ -2,11 +2,11 @@ package com.ai.remote
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -53,9 +53,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import android.net.Uri
-import androidx.activity.result.ActivityResultLauncher
-import java.util.Date
 
 class MainActivity : ComponentActivity(), BLEManagerListener {
 
@@ -82,6 +79,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
             }
         }
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CactusContextInitializer.initialize(this)
@@ -91,8 +89,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
         bleManager = BLEManager(applicationContext)
         bleManager.listener = this
 
-        setupActivityLaunchers()
-
+        enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
                 val state by startupState.collectAsState()
@@ -106,17 +103,25 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                             lastActionMessage = lastActionMessage,
                             targetDeviceName = targetDeviceName,
 
-                    onConnectClicked = {
-                        checkPermissionsAndScan()
-                    },
-                    onDisconnectClicked = {
-                        bleManager.disconnect()
-                        lastActionMessage = "Manual disconnect requested."
-                    },
-                    onSendMessage = { message ->
-                        handleSendMessage(message)
+                            onTargetNameChanged = { newName ->
+                                targetDeviceName = newName
+                            },
+
+                            onConnectClicked = {
+                                checkPermissionsAndScan()
+                            },
+                            onDisconnectClicked = {
+                                bleManager.disconnect()
+                                lastActionMessage = "Manual disconnect requested."
+                            },
+                            onSendMessage = { message ->
+                                handleSendMessage(message)
+                            })
                     }
-                )
+
+                    is StartupStatus.Error -> ErrorScreen((state as StartupStatus.Error).message)
+                }
+
             }
         }
     }
@@ -215,7 +220,6 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     override fun onMessageReceived(message: String) {
         Log.e("message received: ", message)
     }
-    // ----------------------------------------
 }
 
 @Composable
@@ -259,10 +263,7 @@ fun BLEChatScreen(
     onTargetNameChanged: (String) -> Unit,
     onSendMessage: (String) -> Unit,
     onConnectClicked: () -> Unit,
-    onDisconnectClicked: () -> Unit,
-    onSendMessage: (String) -> Unit,
-    onPickImage: ()  -> Unit,
-    isImagePicked: Boolean
+    onDisconnectClicked: () -> Unit
 ) {
     var messageText by rememberSaveable { mutableStateOf("Open livescore on Google Chrome") }
     var deviceNameText by rememberSaveable { mutableStateOf(targetDeviceName) }
@@ -277,8 +278,6 @@ fun BLEChatScreen(
     val isConnected = connectionState == ConnectionState.CONNECTED
     val isConnectingOrScanning =
         connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
-
-    val buttonText = if (isImagePicked) "IMAGE READY ✅" else "PICK AN IMAGE"
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("BLE Chat") }) }
@@ -377,26 +376,6 @@ fun BLEChatScreen(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("SEND MESSAGE", fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = { onPickImage() },
-                enabled = !isImagePicked,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(buttonText, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {  },
-                enabled = isImagePicked,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("SEND IMAGE", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
             }
         }
     }
