@@ -26,7 +26,7 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
     }
 
     // The key used for the local advertising name (the "password")
-    var broadcastKey = ""
+    var broadcastKey = "1234" // default is 1234
 
     override init() {
         super.init()

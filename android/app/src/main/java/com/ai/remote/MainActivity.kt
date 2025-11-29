@@ -55,10 +55,8 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                     lastActionMessage = lastActionMessage,
                     targetDeviceName = targetDeviceName,
 
-                    // UPDATE DEVICE NAME + CONNECT IMMEDIATELY
                     onTargetNameChanged = { newName ->
                         targetDeviceName = newName
-                        checkPermissionsAndScan()
                     },
 
                     onConnectClicked = {
@@ -193,8 +191,8 @@ fun BLEChatScreen(
                         fontWeight = FontWeight.Bold,
                         color = color
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(lastActionMessage)
+                    //Spacer(modifier = Modifier.height(4.dp))
+                    // Text(lastActionMessage)
                 }
             }
 
@@ -202,7 +200,7 @@ fun BLEChatScreen(
 
             // DEVICE NAME FIELD
             Text(
-                text = "Target Device Name",
+                text = "Enter your Mac Key",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.Start)
             )
@@ -214,11 +212,12 @@ fun BLEChatScreen(
                     deviceNameText = it
                     onTargetNameChanged(it)   // 🔥 Auto-connect
                 },
-                label = { Text("Device Name") },
+                label = { Text("Enter 4-digit key") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(32.dp))
+
 
             // CONNECTION BUTTONS
             renderConnection(

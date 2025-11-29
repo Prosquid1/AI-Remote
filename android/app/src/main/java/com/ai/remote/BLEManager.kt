@@ -145,37 +145,6 @@ class BLEManager(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun sendMessage(message: String, isPing: Boolean = false): Boolean {
-        val gatt = connectedGatt
-        val characteristic = writeCharacteristic
-
-        if (gatt == null || characteristic == null) {
-            Log.e("BLE", "Cannot send message: Not connected or characteristic not found.")
-            listener?.onMessageSent(false, message)
-            return false
-        }
-
-        if (!isPing) {
-            // Reset keep alive implementation
-            stopKeepAlive()
-            startKeepAlive()
-        }
-
-        return try {
-            val messageBytes = message.toByteArray()
-            val success = writeInPackets(gatt, characteristic, messageBytes)
-            Log.d("BLE", "Write initiated for message: '$message'. Success status: $success")
-
-            // Wait for onCharacteristicWrite for final status, but return initiation status now
-            success
-        } catch (e: Exception) {
-            Log.e("BLE", "Error writing characteristic: ${e.message}")
-            listener?.onMessageSent(false, message)
-            false
-        }
-    }
-
-    @SuppressLint("MissingPermission")
     fun writeInPackets(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
@@ -212,6 +181,38 @@ class BLEManager(private val context: Context) {
             connectedGatt!!.disconnect()
         } else {
             currentState = ConnectionState.DISCONNECTED
+        }
+        stopScanning()
+    }
+
+    @SuppressLint("MissingPermission")
+    fun sendMessage(message: String, isPing: Boolean = false): Boolean {
+        val gatt = connectedGatt
+        val characteristic = writeCharacteristic
+
+        if (gatt == null || characteristic == null) {
+            Log.e("BLE", "Cannot send message: Not connected or characteristic not found.")
+            listener?.onMessageSent(false, message)
+            return false
+        }
+
+        if (!isPing) {
+            // Reset keep alive implementation
+            stopKeepAlive()
+            startKeepAlive()
+        }
+
+        return try {
+            val messageBytes = message.toByteArray()
+            val success = writeInPackets(gatt, characteristic, messageBytes)
+            Log.d("BLE", "Write initiated for message: '$message'. Success status: $success")
+
+            // Wait for onCharacteristicWrite for final status, but return initiation status now
+            success
+        } catch (e: Exception) {
+            Log.e("BLE", "Error writing characteristic: ${e.message}")
+            listener?.onMessageSent(false, message)
+            false
         }
     }
 
@@ -432,5 +433,7 @@ class BLEManager(private val context: Context) {
             }
             listener?.onMessageSent(success, message)
         }
+
+
     }
 }
