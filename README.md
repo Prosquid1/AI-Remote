@@ -2,6 +2,19 @@
 
 AI Remote is a two-part toolkit that lets an Android device trigger actions on a macOS machine over Bluetooth Low Energy (BLE). The macOS app advertises a 4-digit key, receives text commands, and executes them as AppleScript. The Android app generates the AppleScript locally (or via Gemini as fallback), sends it over BLE, and also supports voice commands via on-device transcription.
 
+## Android Device Screenshots
+
+<img width="300" alt="" src="https://github.com/user-attachments/assets/e29b7e85-fe13-41d5-bb4f-4591c6f093ab" />
+<img width="300" alt="" src="https://github.com/user-attachments/assets/6b924790-71cf-47af-b422-b55b2fb54053" />
+
+## macOS Screenshots
+
+<img width="903" height="455" alt="Screenshot 2025-11-29 at 12 46 40" src="https://github.com/user-attachments/assets/e260159c-41bf-457d-aff8-7798dd2ad6a8" />
+<img width="902" height="454" alt="Screenshot 2025-11-29 at 12 47 07" src="https://github.com/user-attachments/assets/91fae8dc-5660-429f-a189-118ac83ccbe1" />
+
+
+
+
 ## How it works
 
 - **macOS app** (`macOS/AI Remote App`): SwiftUI peripheral that advertises a BLE service keyed by a 4-digit code. Incoming messages ending with `*EOM*` are cleaned of backticks and run through AppleScript (`runAppleScript`), with UI feedback for advertising status and connectivity.
