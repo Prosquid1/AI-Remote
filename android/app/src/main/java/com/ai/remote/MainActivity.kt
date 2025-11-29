@@ -1,6 +1,7 @@
 package com.ai.remote
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -17,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import android.net.Uri
+import androidx.activity.result.ActivityResultLauncher
 import java.util.Date
 
 class MainActivity : ComponentActivity(), BLEManagerListener {
@@ -39,12 +42,18 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
             }
         }
 
+    // Image launcher
+    private lateinit var pickImageLauncher: ActivityResultLauncher<String>
+    private var isImagePicked by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Initialize BLEManager and set the listener
         bleManager = BLEManager(applicationContext)
         bleManager.listener = this
+
+        setupActivityLaunchers()
 
         setContent {
             MyApplicationTheme {
@@ -61,14 +70,16 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                     },
                     onSendMessage = { message ->
                         handleSendMessage(message)
-                    }
+                    },
+                    onPickImage = { pickImageLauncher.launch("image/*") },
+                    isImagePicked = isImagePicked
                 )
             }
         }
     }
 
     private fun checkPermissionsAndScan() {
-        val permissions  = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        val permissions  = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT
@@ -140,6 +151,22 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
         Log.e("message received: " , message)
     }
     // ----------------------------------------
+
+    private fun setupActivityLaunchers() {
+        pickImageLauncher = registerForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            if (uri != null) {
+                val message = "Picked image URI: $uri"
+                isImagePicked = true
+                Log.d("MainActivity", message)
+                // TODO: Handle sending the image data via BLE
+            } else {
+                isImagePicked = false
+                Log.d("MainActivity", "Image picking cancelled.")
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,7 +177,9 @@ fun BLEChatScreen(
     targetDeviceName: String,
     onConnectClicked: () -> Unit,
     onDisconnectClicked: () -> Unit,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    onPickImage: ()  -> Unit,
+    isImagePicked: Boolean
 ) {
     // Local state for the message input field
     var messageText by rememberSaveable { mutableStateOf("Hello from Android") }
@@ -163,6 +192,8 @@ fun BLEChatScreen(
 
     val isConnected = connectionState == ConnectionState.CONNECTED
     val isConnectingOrScanning = connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
+
+    val buttonText = if (isImagePicked) "IMAGE READY ✅" else "PICK AN IMAGE"
 
     Scaffold(
         topBar = {
@@ -260,6 +291,26 @@ fun BLEChatScreen(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("SEND MESSAGE", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { onPickImage() },
+                enabled = !isImagePicked,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(buttonText, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {  },
+                enabled = isImagePicked,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("SEND IMAGE", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
             }
         }
     }
