@@ -48,6 +48,7 @@ import com.ai.remote.ai.ServiceLocator
 import com.cactus.CactusContextInitializer
 import com.cactus.CactusInitParams
 import com.cactus.CactusLM
+import com.cactus.CactusSTT
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,7 +79,6 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                 lastActionMessage = "Bluetooth permissions denied. Cannot connect."
             }
         }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,6 +129,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     private fun preloadModels() {
         val classifierModel = "smollm2-360m"
         val generatorModel = "lfm2-1.2b"
+        val whisperModel = "whisper-small"
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -145,6 +146,14 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                 val lm2 = CactusLM()
                 lm2.downloadModel(generatorModel)
                 lm2.initializeModel(CactusInitParams(generatorModel, contextSize = 2048))
+
+                // Download generator
+                _startupState.value = StartupStatus.Downloading(whisperModel)
+
+                // Download whisper small
+                val stt = CactusSTT()
+                stt.downloadModel(whisperModel)
+                stt.initializeModel(CactusInitParams(whisperModel, contextSize = 2048))
 
                 _startupState.value = StartupStatus.Ready
 
@@ -230,6 +239,7 @@ fun StartupScreen(message: String) {
                 .fillMaxSize()
                 .padding(24.dp)
         ) {
+            Spacer(Modifier.height(48.dp))
             Text("Preparing AI Models...", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
             Text(message)
@@ -247,6 +257,7 @@ fun ErrorScreen(msg: String) {
                 .fillMaxSize()
                 .padding(24.dp)
         ) {
+            Spacer(Modifier.height(48.dp))
             Text("Error loading models:", color = MaterialTheme.colorScheme.error)
             Spacer(Modifier.height(8.dp))
             Text(msg)
