@@ -107,9 +107,13 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
             // but it's the simplest way to check for a string delimiter.
             // For optimal performance, check for raw bytes of the delimiter.
             if let currentMessage = String(data: dataBuffer, encoding: .utf8) {
+                
+                print(currentMessage)
 
                 // 3. Check for the End-of-Message (EOM) delimiter
                 if currentMessage.hasSuffix(endOfMessageDelimiter) {
+
+
 
                     // The full message has arrived!
 
@@ -137,6 +141,8 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
                 // dataBuffer = Data()
             }
         }
+
+
     }
 
     // MARK: - Control Methods

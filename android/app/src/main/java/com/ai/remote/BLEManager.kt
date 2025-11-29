@@ -250,12 +250,12 @@ class BLEManager(private val context: Context) {
     }
 
     private fun stopKeepAlive() {
-        handler.removeCallbacks(keepAliveRunnable)
+        // handler.removeCallbacks(keepAliveRunnable)
         Log.d("BLE", "Keep-alive stopped.")
     }
 
     private fun startKeepAlive() {
-        handler.postDelayed(keepAliveRunnable, KEEPALIVE_INTERVAL_MS)
+        // handler.postDelayed(keepAliveRunnable, KEEPALIVE_INTERVAL_MS)
         Log.d("BLE", "Keep-alive started with ${KEEPALIVE_INTERVAL_MS}ms interval.")
     }
 
