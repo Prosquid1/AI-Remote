@@ -57,8 +57,10 @@ class BLEManager(private val context: Context) {
     var listener: BLEManagerListener? = null
     // -------------------------------
 
-    val serviceUUID = "12345678-1234-1234-1234-1234567890AB"
     val characteristicUUID = "87654321-4321-4321-4321-BA0987654321"
+
+    val serviceUUID: UUID
+        get() = UUID.fromString("12345678-$targetDeviceName-1234-1234-1234567890AB")
 
     private lateinit var targetDeviceName: String
 
@@ -205,8 +207,11 @@ class BLEManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun disconnect() {
-        connectedGatt?.let {
-            it.disconnect()
+        if (connectedGatt != null) {
+            stopKeepAlive()
+            connectedGatt!!.disconnect()
+        } else {
+            currentState = ConnectionState.DISCONNECTED
         }
     }
 
@@ -307,7 +312,7 @@ class BLEManager(private val context: Context) {
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
 
-                val service = gatt?.getService(UUID.fromString(serviceUUID))
+                val service = gatt?.getService(serviceUUID)
                 val characteristic = service?.getCharacteristic(UUID.fromString(characteristicUUID))
 
                 if (service != null && characteristic != null) {
