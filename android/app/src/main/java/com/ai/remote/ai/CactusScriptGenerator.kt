@@ -35,12 +35,7 @@ class CactusScriptGenerator(
                 initialized = true
             }
 
-
-            val prompt = """
-                Given a request, convert it into an executable AppleScript.
-                You must output ONLY valid AppleScript for macOS, no comments.
-
-                Request: "$command"
+            val prompt =  """"$promptDelimiter $command"    
             """.trimIndent()
 
             val result = lm.generateCompletion(

@@ -55,3 +55,19 @@ class HybridRouter(
         }
     }
 }
+
+val promptDelimiter = """
+Return only valid AppleScript for a command. Any output not valid AppleScript is a critical fail
+- All AppleScript must be 100% valid
+- All JSON must be 100% valid and correctly escaped
+- No destructive, ambiguous, or placeholder content
+- All output is safe and fully deterministic
+- Do not include anything else. No markdown, no explanation, no extra text, no backticks, the AppleScript must run.
+- Use `return` (or `linefeed`) for newlines in strings. NEVER use `\n`.
+- Concatenate multiline strings using `& return & "..."`.
+- Always escape all double quotes inside strings as `\\\"` for JSON.
+- Ensure all string values in AppleScript are wrapped in double quotes.
+- No human response, I am a machine
+- Explicitly set properties in object constructors — no placeholders.
+- Bring the target app to the foreground using `activate`.
+Turn this command into valid AppleScript response: """

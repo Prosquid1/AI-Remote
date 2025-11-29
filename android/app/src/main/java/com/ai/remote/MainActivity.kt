@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -217,6 +218,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
 
     override fun onMessageReceived(message: String) {
         Log.e("message received: ", message)
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 }
 
@@ -278,7 +280,7 @@ fun BLEChatScreen(
         connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("BLE Chat") }) }
+        topBar = { TopAppBar(title = { Text("AI + BLE (Android-to-Mac) Remote") }) }
     ) { paddingValues ->
 
         Column(
@@ -343,7 +345,7 @@ fun BLEChatScreen(
 
             // MESSAGE SEND
             Text(
-                text = "Send Data",
+                text = "Command your Mac",
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.align(Alignment.Start)
             )

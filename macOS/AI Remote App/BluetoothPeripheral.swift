@@ -11,6 +11,8 @@ import SwiftUI
 
 class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDelegate {
 
+    var messageBuffer = ""
+
     // MARK: - Published Properties
     @Published var receivedMessage = ""
     @Published var isAdvertising = false
@@ -81,28 +83,6 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
         }
     }
 
-//    func peripheralManager(_ peripheral: CBPeripheralManager,
-//                           didReceiveWrite requests: [CBATTRequest]) {
-//        for request in requests {
-//            if let value = request.value {
-//                receivedMessage = String(data: value, encoding: .utf8) ?? "Received unreadable data"
-//                print("Received message: \(receivedMessage)")
-//
-//                if (receivedMessage != "PING!") {
-//
-//                    runAppleScript(receivedMessage.replacingOccurrences(of: "```", with: ""), completion: {a, b in})
-//
-//
-//                }
-//
-//                // Respond to the request to acknowledge the write
-//                peripheral.respond(to: request, withResult: .success)
-//            }
-//        }
-//    }
-
-    var messageBuffer = ""
-
     func peripheralManager(_ peripheral: CBPeripheralManager,
                            didReceiveWrite requests: [CBATTRequest]) {
         for request in requests {
@@ -121,7 +101,9 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
 
                     if fullMessage != "PING!" {
                         let cleaned = fullMessage.replacingOccurrences(of: "```", with: "")
-                        runAppleScript(cleaned) { a, b in }
+                        runAppleScript(cleaned) { [weak self] message, hasError in
+                            self?.sendMessage(message)
+                        }
                     }
 
                     // Clear buffer after processing

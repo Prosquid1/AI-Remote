@@ -34,36 +34,6 @@
             endingLineNumber = "11"
             landmarkName = "runAppleScript(_:completion:)"
             landmarkType = "9">
-            <Locations>
-               <Location
-                  uuid = "5734FA08-2E38-408C-9525-4661AA704E83 - 6b686317c139b301"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AI_Remote_App.runAppleScript(_: Swift.String, completion: (Swift.String, Swift.Bool) -&gt; ()) -&gt; ()"
-                  moduleName = "AI Remote App.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/collodrollo/Documents/ai-remote/macOS/AI%20Remote%20App/ScriptRunner.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "11"
-                  endingLineNumber = "11">
-               </Location>
-               <Location
-                  uuid = "5734FA08-2E38-408C-9525-4661AA704E83 - f9a22be727a7dc3e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 @Sendable () -&gt; () in AI_Remote_App.runAppleScript(_: Swift.String, completion: (Swift.String, Swift.Bool) -&gt; ()) -&gt; ()"
-                  moduleName = "AI Remote App.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/collodrollo/Documents/ai-remote/macOS/AI%20Remote%20App/ScriptRunner.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "11"
-                  endingLineNumber = "11">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
