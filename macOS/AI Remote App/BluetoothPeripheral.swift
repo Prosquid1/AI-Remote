@@ -81,20 +81,58 @@ class BLEPeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDeleg
         }
     }
 
+//    func peripheralManager(_ peripheral: CBPeripheralManager,
+//                           didReceiveWrite requests: [CBATTRequest]) {
+//        for request in requests {
+//            if let value = request.value {
+//                receivedMessage = String(data: value, encoding: .utf8) ?? "Received unreadable data"
+//                print("Received message: \(receivedMessage)")
+//
+//                if (receivedMessage != "PING!") {
+//
+//                    runAppleScript(receivedMessage.replacingOccurrences(of: "```", with: ""), completion: {a, b in})
+//
+//
+//                }
+//
+//                // Respond to the request to acknowledge the write
+//                peripheral.respond(to: request, withResult: .success)
+//            }
+//        }
+//    }
+
+    var messageBuffer = ""
+
     func peripheralManager(_ peripheral: CBPeripheralManager,
                            didReceiveWrite requests: [CBATTRequest]) {
         for request in requests {
-            if let value = request.value {
-                receivedMessage = String(data: value, encoding: .utf8) ?? "Received unreadable data"
-                print("Received message: \(receivedMessage)")
+            if let value = request.value,
+               let chunk = String(data: value, encoding: .utf8) {
 
-                if (receivedMessage != "PING!") { runAppleScript(receivedMessage.replacingOccurrences(of: "```", with: ""), completion: {a, b in}) }
+                print("Received chunk: \(chunk)")
+                messageBuffer += chunk
 
-                // Respond to the request to acknowledge the write
+                // Check if message is complete
+                if messageBuffer.contains("*EOM*") {
+
+                    // Remove the terminator
+                    let fullMessage = messageBuffer.replacingOccurrences(of: "*EOM*", with: "")
+                    print("Full received message: \(fullMessage)")
+
+                    if fullMessage != "PING!" {
+                        let cleaned = fullMessage.replacingOccurrences(of: "```", with: "")
+                        runAppleScript(cleaned) { a, b in }
+                    }
+
+                    // Clear buffer after processing
+                    messageBuffer = ""
+                }
+
                 peripheral.respond(to: request, withResult: .success)
             }
         }
     }
+
 
     // MARK: - Control Methods
 
