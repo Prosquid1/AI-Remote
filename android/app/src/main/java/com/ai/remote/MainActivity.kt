@@ -8,22 +8,59 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.ai.remote.ai.ServiceLocator
+import com.cactus.CactusContextInitializer
+import com.cactus.CactusInitParams
+import com.cactus.CactusLM
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import android.net.Uri
 import androidx.activity.result.ActivityResultLauncher
 import java.util.Date
 
 class MainActivity : ComponentActivity(), BLEManagerListener {
+
+    private val _startupState = MutableStateFlow<StartupStatus>(StartupStatus.Idle)
+    val startupState = _startupState.asStateFlow()
 
     private lateinit var bleManager: BLEManager
 
@@ -45,12 +82,10 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
             }
         }
 
-    // Image launcher
-    private lateinit var pickImageLauncher: ActivityResultLauncher<String>
-    private var isImagePicked by mutableStateOf(false)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CactusContextInitializer.initialize(this)
+        preloadModels()
 
         // BLE manager
         bleManager = BLEManager(applicationContext)
@@ -60,16 +95,16 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
 
         setContent {
             MyApplicationTheme {
-                BLEChatScreen(
-                    connectionState = connectionState,
-                    lastActionMessage = lastActionMessage,
-                    targetDeviceName = targetDeviceName,
+                val state by startupState.collectAsState()
 
-                    // UPDATE DEVICE NAME + CONNECT IMMEDIATELY
-                    onTargetNameChanged = { newName ->
-                        targetDeviceName = newName
-                        checkPermissionsAndScan()
-                    },
+                when (state) {
+                    StartupStatus.Idle -> StartupScreen("Starting...")
+                    is StartupStatus.Downloading -> StartupScreen("Downloading ${(state as StartupStatus.Downloading).model}...")
+                    StartupStatus.Ready -> {
+                        BLEChatScreen(
+                            connectionState = connectionState,
+                            lastActionMessage = lastActionMessage,
+                            targetDeviceName = targetDeviceName,
 
                     onConnectClicked = {
                         checkPermissionsAndScan()
@@ -80,10 +115,37 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                     },
                     onSendMessage = { message ->
                         handleSendMessage(message)
-                    },
-                    onPickImage = { pickImageLauncher.launch("image/*") },
-                    isImagePicked = isImagePicked
+                    }
                 )
+            }
+        }
+    }
+
+    private fun preloadModels() {
+        val classifierModel = "smollm2-360m"
+        val generatorModel = "lfm2-1.2b"
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Download classifier
+                _startupState.value = StartupStatus.Downloading(classifierModel)
+
+                val lm1 = CactusLM()
+                lm1.downloadModel(classifierModel)
+                lm1.initializeModel(CactusInitParams(classifierModel, contextSize = 512))
+
+                // Download generator
+                _startupState.value = StartupStatus.Downloading(generatorModel)
+
+                val lm2 = CactusLM()
+                lm2.downloadModel(generatorModel)
+                lm2.initializeModel(CactusInitParams(generatorModel, contextSize = 2048))
+
+                _startupState.value = StartupStatus.Ready
+
+            } catch (e: Exception) {
+                Log.e("AIApp", "Startup error", e)
+                _startupState.value = StartupStatus.Error(e.message ?: "Unknown error")
             }
         }
     }
@@ -156,6 +218,37 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     // ----------------------------------------
 }
 
+@Composable
+fun StartupScreen(message: String) {
+    MaterialTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text("Preparing AI Models...", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(16.dp))
+            Text(message)
+            Spacer(Modifier.height(16.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+fun ErrorScreen(msg: String) {
+    MaterialTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text("Error loading models:", color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
+            Text(msg)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,7 +264,7 @@ fun BLEChatScreen(
     onPickImage: ()  -> Unit,
     isImagePicked: Boolean
 ) {
-    var messageText by rememberSaveable { mutableStateOf("Hello from Android") }
+    var messageText by rememberSaveable { mutableStateOf("Open livescore on Google Chrome") }
     var deviceNameText by rememberSaveable { mutableStateOf(targetDeviceName) }
 
     val color = when (connectionState) {
@@ -180,6 +273,7 @@ fun BLEChatScreen(
         else -> Color(0xFFF44336)
     }
 
+    val myScope = CoroutineScope(Dispatchers.Main)
     val isConnected = connectionState == ConnectionState.CONNECTED
     val isConnectingOrScanning =
         connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
@@ -211,8 +305,8 @@ fun BLEChatScreen(
                         fontWeight = FontWeight.Bold,
                         color = color
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(lastActionMessage)
+                    //Spacer(modifier = Modifier.height(4.dp))
+                    // Text(lastActionMessage)
                 }
             }
 
@@ -220,7 +314,7 @@ fun BLEChatScreen(
 
             // DEVICE NAME FIELD
             Text(
-                text = "Target Device Name",
+                text = "Enter your Mac Key",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.Start)
             )
@@ -232,11 +326,12 @@ fun BLEChatScreen(
                     deviceNameText = it
                     onTargetNameChanged(it)   // 🔥 Auto-connect
                 },
-                label = { Text("Device Name") },
+                label = { Text("Enter 4-digit key") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(32.dp))
+
 
             // CONNECTION BUTTONS
             renderConnection(
@@ -268,9 +363,17 @@ fun BLEChatScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { onSendMessage(messageText) },
+                onClick = {
+                    myScope.launch {
+                        val scriptResult = ServiceLocator.router.generateScript(messageText)
+                        onSendMessage(scriptResult.script)
+                    }
+
+                },
                 enabled = isConnected && messageText.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("SEND MESSAGE", fontWeight = FontWeight.Bold)
@@ -298,6 +401,8 @@ fun BLEChatScreen(
         }
     }
 }
+
+
 
 @Composable
 fun renderConnection(
@@ -341,4 +446,12 @@ fun MyApplicationTheme(content: @Composable () -> Unit) {
         ),
         content = content
     )
+}
+
+
+sealed class StartupStatus {
+    object Idle : StartupStatus()
+    data class Downloading(val model: String) : StartupStatus()
+    object Ready : StartupStatus()
+    data class Error(val message: String) : StartupStatus()
 }
