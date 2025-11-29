@@ -35,16 +35,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.ai.remote.ai.ServiceLocator
+import com.ai.remote.audio.AudioRecorder
+import com.ai.remote.audio.LauncherHolder
+import com.ai.remote.audio.RecorderUiScreen
+import com.ai.remote.audio.Whisper
 import com.cactus.CactusContextInitializer
 import com.cactus.CactusInitParams
 import com.cactus.CactusLM
@@ -80,6 +86,20 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
             }
         }
 
+    private lateinit var audioRecorder: AudioRecorder
+    private val launcherHolder = LauncherHolder()
+
+    private fun permissionCallback() {
+        launcherHolder.permissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            val granted = permissions[Manifest.permission.RECORD_AUDIO] == true
+            audioRecorder.handlePermissionResult(granted)
+        }
+
+        audioRecorder = AudioRecorder(this, launcherHolder)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CactusContextInitializer.initialize(this)
@@ -88,6 +108,9 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
         // BLE manager
         bleManager = BLEManager(applicationContext)
         bleManager.listener = this
+
+        permissionCallback()
+        val whisper = Whisper()
 
         enableEdgeToEdge()
         setContent {
@@ -103,6 +126,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                             lastActionMessage = lastActionMessage,
                             targetDeviceName = targetDeviceName,
 
+                            // UPDATE DEVICE NAME + CONNECT IMMEDIATELY
                             onTargetNameChanged = { newName ->
                                 targetDeviceName = newName
                             },
@@ -116,7 +140,10 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                             },
                             onSendMessage = { message ->
                                 handleSendMessage(message)
-                            })
+                            },
+                            audioRecorder = audioRecorder,
+                            whisper = whisper
+                        )
                     }
 
                     is StartupStatus.Error -> ErrorScreen((state as StartupStatus.Error).message)
@@ -274,10 +301,13 @@ fun BLEChatScreen(
     onTargetNameChanged: (String) -> Unit,
     onSendMessage: (String) -> Unit,
     onConnectClicked: () -> Unit,
-    onDisconnectClicked: () -> Unit
+    onDisconnectClicked: () -> Unit,
+    audioRecorder: AudioRecorder,
+    whisper: Whisper
 ) {
     var messageText by rememberSaveable { mutableStateOf("Open livescore on Google Chrome") }
     var deviceNameText by rememberSaveable { mutableStateOf(targetDeviceName) }
+    var isTranscribing by remember { mutableStateOf(false) }
 
     val color = when (connectionState) {
         ConnectionState.CONNECTED -> Color(0xFF4CAF50)
@@ -370,6 +400,13 @@ fun BLEChatScreen(
                 enabled = isConnected
             )
 
+            if (isTranscribing) {
+                LinearProgressIndicator(
+                    modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
+                    strokeCap = StrokeCap.Round
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
@@ -392,6 +429,18 @@ fun BLEChatScreen(
             ) {
                 Text("SEND MESSAGE", fontWeight = FontWeight.Bold)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            RecorderUiScreen(
+                audioRecorder = audioRecorder,
+                isEnabled = isConnected,
+                whisper = whisper,
+                voiceMessage = { voiceMessage ->
+                    messageText = voiceMessage
+                },
+                isTranscribing = { isTranscribing = it }
+            )
         }
     }
 }
