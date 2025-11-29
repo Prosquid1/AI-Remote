@@ -1,4 +1,5 @@
 package com.ai.remote
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -25,13 +26,15 @@ import java.util.Date
 class MainActivity : ComponentActivity(), BLEManagerListener {
 
     private lateinit var bleManager: BLEManager
-    private val targetDeviceName = "OKI" // Set your target device name here
 
-    // State managed by the activity, passed to Compose
+    // Now mutable so UI can update it
+    private var targetDeviceName by mutableStateOf("1234")
+
+    // UI state
     private var connectionState by mutableStateOf(ConnectionState.DISCONNECTED)
     private var lastActionMessage by mutableStateOf("Ready to scan.")
 
-    // Permission launcher for Android 12+
+    // Permission launcher
     private val requestBluetoothPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             val granted = permissions.entries.all { it.value }
@@ -49,7 +52,7 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize BLEManager and set the listener
+        // BLE manager
         bleManager = BLEManager(applicationContext)
         bleManager.listener = this
 
@@ -61,6 +64,13 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
                     connectionState = connectionState,
                     lastActionMessage = lastActionMessage,
                     targetDeviceName = targetDeviceName,
+
+                    // UPDATE DEVICE NAME + CONNECT IMMEDIATELY
+                    onTargetNameChanged = { newName ->
+                        targetDeviceName = newName
+                        checkPermissionsAndScan()
+                    },
+
                     onConnectClicked = {
                         checkPermissionsAndScan()
                     },
@@ -79,16 +89,15 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     }
 
     private fun checkPermissionsAndScan() {
-        val permissions  = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-        }
+        val permissions =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                )
+            } else {
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
 
         val allGranted = permissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
@@ -122,12 +131,9 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
         }
     }
 
-    // --- BLEManagerListener Implementation ---
+    // BLEManagerListener
     override fun onConnectionStateChange(state: ConnectionState) {
-        // Update the state variable used by the Compose UI
         connectionState = state
-
-        // Provide context-specific UI feedback
         lastActionMessage = when (state) {
             ConnectionState.DISCONNECTED -> "Disconnected. Tap Connect to retry."
             ConnectionState.SCANNING -> "Scanning for device..."
@@ -138,36 +144,18 @@ class MainActivity : ComponentActivity(), BLEManagerListener {
     }
 
     override fun onMessageSent(success: Boolean, message: String) {
-        if (message.equals(PING_MESSAGE)) return
-        if (success) {
+        if (success)
             lastActionMessage = "Message successfully sent: '$message'"
-        } else {
+        else
             lastActionMessage = "Message send failed: '$message'"
-            //bleManager.disconnect()
-        }
     }
 
     override fun onMessageReceived(message: String) {
-        Log.e("message received: " , message)
+        Log.e("message received: ", message)
     }
     // ----------------------------------------
-
-    private fun setupActivityLaunchers() {
-        pickImageLauncher = registerForActivityResult(
-            ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            if (uri != null) {
-                val message = "Picked image URI: $uri"
-                isImagePicked = true
-                Log.d("MainActivity", message)
-                // TODO: Handle sending the image data via BLE
-            } else {
-                isImagePicked = false
-                Log.d("MainActivity", "Image picking cancelled.")
-            }
-        }
-    }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,31 +163,33 @@ fun BLEChatScreen(
     connectionState: ConnectionState,
     lastActionMessage: String,
     targetDeviceName: String,
+    onTargetNameChanged: (String) -> Unit,
+    onSendMessage: (String) -> Unit,
     onConnectClicked: () -> Unit,
     onDisconnectClicked: () -> Unit,
     onSendMessage: (String) -> Unit,
     onPickImage: ()  -> Unit,
     isImagePicked: Boolean
 ) {
-    // Local state for the message input field
     var messageText by rememberSaveable { mutableStateOf("Hello from Android") }
+    var deviceNameText by rememberSaveable { mutableStateOf(targetDeviceName) }
 
     val color = when (connectionState) {
-        ConnectionState.CONNECTED -> Color(0xFF4CAF50) // Green
-        ConnectionState.CONNECTING, ConnectionState.SCANNING -> Color(0xFFFFC107) // Amber/Yellow
-        else -> Color(0xFFF44336) // Red/Error
+        ConnectionState.CONNECTED -> Color(0xFF4CAF50)
+        ConnectionState.CONNECTING, ConnectionState.SCANNING -> Color(0xFFFFC107)
+        else -> Color(0xFFF44336)
     }
 
     val isConnected = connectionState == ConnectionState.CONNECTED
-    val isConnectingOrScanning = connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
+    val isConnectingOrScanning =
+        connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.SCANNING
 
     val buttonText = if (isImagePicked) "IMAGE READY ✅" else "PICK AN IMAGE"
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("BLE Chat: $targetDeviceName") })
-        }
+        topBar = { TopAppBar(title = { Text("BLE Chat") }) }
     ) { paddingValues ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -207,67 +197,59 @@ fun BLEChatScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status Display Card
+
+            // STATUS CARD
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "Status: ${connectionState.name}",
                         fontWeight = FontWeight.Bold,
-                        color = color,
-                        style = MaterialTheme.typography.titleMedium
+                        color = color
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = lastActionMessage,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(lastActionMessage)
                 }
             }
 
-            if (isConnectingOrScanning) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(8.dp))
-            }
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // DEVICE NAME FIELD
+            Text(
+                text = "Target Device Name",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Connection Controls
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceAround
-            ) {
-                // Connect/Reconnect Button
-                Button(
-                    onClick = onConnectClicked,
-                    enabled = connectionState == ConnectionState.DISCONNECTED || connectionState == ConnectionState.ERROR,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text(if (connectionState == ConnectionState.ERROR) "RETRY CONNECT" else "CONNECT")
-                }
-
-                // Disconnect Button
-                Button(
-                    onClick = onDisconnectClicked,
-                    enabled = isConnected || isConnectingOrScanning,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("DISCONNECT")
-                }
-            }
+            OutlinedTextField(
+                value = deviceNameText,
+                onValueChange = {
+                    deviceNameText = it
+                    onTargetNameChanged(it)   // 🔥 Auto-connect
+                },
+                label = { Text("Device Name") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
-            Divider()
+
+            // CONNECTION BUTTONS
+            renderConnection(
+                connectionState,
+                isConnected,
+                isConnectingOrScanning,
+                onConnectClicked,
+                onDisconnectClicked
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Message Sending Section
+            // MESSAGE SEND
             Text(
                 text = "Send Data",
                 style = MaterialTheme.typography.headlineSmall,
@@ -282,6 +264,7 @@ fun BLEChatScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = isConnected
             )
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
@@ -290,7 +273,7 @@ fun BLEChatScreen(
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("SEND MESSAGE", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+                Text("SEND MESSAGE", fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -316,12 +299,43 @@ fun BLEChatScreen(
     }
 }
 
-// Dummy Theme for compilation
+@Composable
+fun renderConnection(
+    connectionState: ConnectionState,
+    isConnected: Boolean,
+    isConnectingOrScanning: Boolean,
+    onConnectClicked: () -> Unit,
+    onDisconnectClicked: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceAround
+    ) {
+        Button(
+            onClick = onConnectClicked,
+            enabled = connectionState == ConnectionState.DISCONNECTED || connectionState == ConnectionState.ERROR
+        ) {
+            Text(if (connectionState == ConnectionState.ERROR) "RETRY CONNECT" else "CONNECT")
+        }
+
+        Button(
+            onClick = onDisconnectClicked,
+            enabled = isConnected || isConnectingOrScanning,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("DISCONNECT")
+        }
+    }
+
+    Spacer(modifier = Modifier.height(32.dp))
+    Divider()
+}
+
 @Composable
 fun MyApplicationTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
-            primary = Color(0xFF007AFF), // iOS Blue
+            primary = Color(0xFF007AFF),
             error = Color(0xFFFF3B30),
             background = Color(0xFFF2F2F7)
         ),
